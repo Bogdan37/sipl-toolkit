@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sipl.Cli/Sipl.Cli.csproj" />
+    <Project Path="src/Sipl.Core/Sipl.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sipl.Core.Tests/Sipl.Core.Tests.csproj" />
+  </Folder>
+</Solution>
