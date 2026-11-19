@@ -1,0 +1,1 @@
+﻿while A <> B do if A > B then A := A - B else B := B - A

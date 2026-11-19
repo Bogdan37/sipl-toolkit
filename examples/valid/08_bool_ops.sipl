@@ -1,0 +1,1 @@
+﻿if (A > 0 and B > 0) or not (C = 0) then Res := 1 else Res := 0
