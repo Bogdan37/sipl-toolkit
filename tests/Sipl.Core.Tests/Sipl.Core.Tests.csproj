@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sipl.Core\Sipl.Core.csproj" />
+    <ProjectReference Include="..\..\src\Sipl.Cli\Sipl.Cli.csproj" />
   </ItemGroup>
 
 </Project>
