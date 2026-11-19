@@ -1,0 +1,68 @@
+﻿name: SIPL Toolkit CI & Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run unit & integration tests
+        run: dotnet test --configuration Release --no-build --verbosity normal
+
+      - name: Smoke test CLI
+        run: |
+          dotnet run --project src/Sipl.Cli --configuration Release -- check examples/valid/03_power.sipl
+          dotnet run --project src/Sipl.Cli --configuration Release -- run examples/valid/03_power.sipl --var X=2 --var Y=5
+          dotnet run --project src/Sipl.Cli --configuration Release -- semantics examples/valid/03_power.sipl --var X=3 --var Y=3
+
+  release:
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish CLI (win-x64 & linux-x64)
+        run: |
+          dotnet publish src/Sipl.Cli -c Release -r win-x64 --self-contained false -o artifacts/sipl-cli-win-x64
+          dotnet publish src/Sipl.Cli -c Release -r linux-x64 --self-contained false -o artifacts/sipl-cli-linux-x64
+          cd artifacts
+          zip -r sipl-cli-win-x64.zip sipl-cli-win-x64
+          tar -czf sipl-cli-linux-x64.tar.gz sipl-cli-linux-x64
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/sipl-cli-win-x64.zip
+            artifacts/sipl-cli-linux-x64.tar.gz
+          generate_release_notes: true
