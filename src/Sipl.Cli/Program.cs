@@ -77,8 +77,8 @@ public static class Program
             return FailCli(error!);
 
         string format = opts.Format ?? (opts.Json ? "json" : "text");
-        if (format is not ("text" or "json" or "dot"))
-            return FailCli($"Непідтримуваний формат '{format}'. Доступні: text, json, dot.");
+        if (format is not ("text" or "json" or "dot" or "cst" or "compare"))
+            return FailCli($"Непідтримуваний формат '{format}'. Доступні: text, json, dot, cst, compare.");
 
         var parseResult = Parser.ParseSource(opts.Source!);
         if (!parseResult.IsSuccess)
@@ -104,6 +104,8 @@ public static class Program
         {
             "dot" => AstVisualizer.ToDot(parseResult.Program!),
             "json" => AstVisualizer.ToJson(parseResult.Program!),
+            "cst" => ParseTreeBuilder.ToTextTree(ParseTreeBuilder.Build(parseResult.Program!)),
+            "compare" => AstVisualizer.ToComparisonHtml(parseResult.Program!, opts.Source!),
             _ => AstVisualizer.ToTextTree(parseResult.Program!)
         };
 
@@ -310,7 +312,7 @@ public static class Program
             {
                 if (i + 1 >= args.Length)
                 {
-                    error = "Прапорець '--format' вимагає значення (text, json або dot).";
+                    error = "Прапорець '--format' вимагає значення (text, json, dot, cst або compare).";
                     return false;
                 }
                 format = args[++i].ToLowerInvariant();
@@ -397,7 +399,7 @@ public static class Program
             SIPL Language Toolkit CLI
             Використання:
               sipl check <file.sipl> [--json]
-              sipl parse <file.sipl> [--format text|json|dot] [--json]
+              sipl parse <file.sipl> [--format text|json|dot|cst|compare] [--json]
               sipl run <file.sipl> [--var X=10 ...] [--max-steps 10000] [--json]
               sipl trace <file.sipl> [--var X=10 ...] [--max-steps 10000] [--json]
               sipl semantics <file.sipl> [--var X=10 ...] [--max-steps 1000] [--json]

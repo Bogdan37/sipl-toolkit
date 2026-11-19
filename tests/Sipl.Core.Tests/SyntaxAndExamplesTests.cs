@@ -95,4 +95,21 @@ public class SyntaxAndExamplesTests
         Assert.StartsWith("digraph SiplAst", dot);
         Assert.Contains("\"type\": \"ProgramNode\"", json);
     }
+    
+    [Fact]
+    public void ParseTreeAndHtmlComparison_ShowsMoreNodesInCstThanAst()
+    {
+        const string code = "begin R := (1 + 2); skip end";
+        var result = Parser.ParseSource(code);
+        Assert.True(result.IsSuccess);
+
+        var cst = ParseTreeBuilder.Build(result.Program!);
+        string cstText = ParseTreeBuilder.ToTextTree(cst);
+        string html = AstVisualizer.ToComparisonHtml(result.Program!, code);
+
+        Assert.Contains("<Program>", cstText);
+        Assert.Contains("'begin'", cstText);
+        Assert.Contains("'end'", cstText);
+        Assert.Contains("Concrete Parse Tree vs Abstract Syntax Tree", html);
+    }
 }

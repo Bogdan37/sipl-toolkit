@@ -129,4 +129,60 @@ public static class AstVisualizer
 
     private static string EscapeDot(string value) =>
         value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+    
+    public static string ToComparisonHtml(ProgramNode program, string sourceCode)
+    {
+        ArgumentNullException.ThrowIfNull(program);
+        var cst = ParseTreeBuilder.Build(program);
+
+        int cstNodes = CountParseTreeNodes(cst);
+        int astNodes = CountAstNodes(program);
+
+        string cstText = System.Net.WebUtility.HtmlEncode(ParseTreeBuilder.ToTextTree(cst));
+        string astText = System.Net.WebUtility.HtmlEncode(ToTextTree(program));
+        string escapedSource = System.Net.WebUtility.HtmlEncode(sourceCode);
+
+        return $$"""
+            <!DOCTYPE html>
+            <html lang="uk">
+            <head>
+              <meta charset="utf-8" />
+              <title>SIPL: Parse Tree (CST) vs AST Comparison</title>
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 24px; background: #0f172a; color: #e2e8f0; }
+                h1 { font-size: 20px; margin-bottom: 8px; color: #38bdf8; }
+                .meta { font-size: 13px; color: #94a3b8; margin-bottom: 16px; }
+                .source-box { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-family: Consolas, monospace; white-space: pre-wrap; }
+                .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                .card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; overflow-x: auto; }
+                .card h2 { margin-top: 0; font-size: 16px; display: flex; justify-content: space-between; align-items: center; }
+                .badge { background: #0284c7; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 12px; }
+                .badge.ast { background: #059669; }
+                pre { margin: 0; font-family: Consolas, "Courier New", monospace; font-size: 13px; line-height: 1.45; }
+              </style>
+            </head>
+            <body>
+              <h1>SIPL Syntax Comparison: Concrete Parse Tree vs Abstract Syntax Tree</h1>
+              <div class="meta">Згенеровано автоматично модулем VIS-02 (Sipl.Core)</div>
+              <div class="source-box">{{escapedSource}}</div>
+              <div class="grid">
+                <div class="card">
+                  <h2>Parse Tree (Конкретний синтаксис) <span class="badge">Вузлів: {{cstNodes}}</span></h2>
+                  <pre>{{cstText}}</pre>
+                </div>
+                <div class="card">
+                  <h2>AST (Абстрактний синтаксис) <span class="badge ast">Вузлів: {{astNodes}}</span></h2>
+                  <pre>{{astText}}</pre>
+                </div>
+              </div>
+            </body>
+            </html>
+            """;
+    }
+
+    private static int CountParseTreeNodes(ParseTreeNode node) =>
+        1 + node.Children.Sum(CountParseTreeNodes);
+
+    private static int CountAstNodes(AstNode node) =>
+        1 + GetChildren(node).Sum(CountAstNodes);
 }
