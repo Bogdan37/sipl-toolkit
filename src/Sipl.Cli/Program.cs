@@ -57,11 +57,11 @@ public static class Program
                 isValid = parseResult.IsSuccess,
                 diagnostics = parseResult.Diagnostics
             };
-            Console.WriteLine(JsonSerializer.Serialize(payload, JsonOptions));
+            WriteOutput(JsonSerializer.Serialize(payload, JsonOptions), opts.OutFile);
         }
         else if (parseResult.IsSuccess)
         {
-            Console.WriteLine($"OK: '{opts.FilePath}' не містить лексичних чи синтаксичних помилок.");
+            WriteOutput($"OK: '{opts.FilePath}' не містить лексичних чи синтаксичних помилок.", opts.OutFile);
         }
         else
         {
@@ -85,13 +85,13 @@ public static class Program
         {
             if (opts.Json || format == "json")
             {
-                Console.WriteLine(JsonSerializer.Serialize(new
+                WriteOutput(JsonSerializer.Serialize(new
                 {
                     command = "parse",
                     file = opts.FilePath,
                     isSuccess = false,
                     diagnostics = parseResult.Diagnostics
-                }, JsonOptions));
+                }, JsonOptions), opts.OutFile);
             }
             else
             {
@@ -109,7 +109,7 @@ public static class Program
             _ => AstVisualizer.ToTextTree(parseResult.Program!)
         };
 
-        Console.WriteLine(output);
+        WriteOutput(output, opts.OutFile);
         return 0;
     }
 
@@ -123,13 +123,13 @@ public static class Program
         {
             if (opts.Json)
             {
-                Console.WriteLine(JsonSerializer.Serialize(new
+                WriteOutput(JsonSerializer.Serialize(new
                 {
                     command = "run",
                     file = opts.FilePath,
                     status = "ParseError",
                     diagnostics = parseResult.Diagnostics
-                }, JsonOptions));
+                }, JsonOptions), opts.OutFile);
             }
             else
             {
@@ -149,7 +149,7 @@ public static class Program
 
         if (opts.Json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new
+            WriteOutput(JsonSerializer.Serialize(new
             {
                 command = "run",
                 file = opts.FilePath,
@@ -157,12 +157,14 @@ public static class Program
                 stepsExecuted = result.StepsExecuted,
                 finalState = result.FinalState,
                 diagnostics = result.Diagnostics
-            }, JsonOptions));
+            }, JsonOptions), opts.OutFile);
         }
         else
         {
-            Console.WriteLine($"Статус: {result.Status} (виконано кроків: {result.StepsExecuted})");
-            Console.WriteLine($"Кінцевий стан: {FormatState(result.FinalState)}");
+            var sb = new StringBuilder();
+            sb.AppendLine($"Статус: {result.Status} (виконано кроків: {result.StepsExecuted})");
+            sb.Append($"Кінцевий стан: {FormatState(result.FinalState)}");
+            WriteOutput(sb.ToString(), opts.OutFile);
             if (result.Diagnostics.Count > 0)
                 PrintDiagnostics(result.Diagnostics);
         }
@@ -180,13 +182,13 @@ public static class Program
         {
             if (opts.Json)
             {
-                Console.WriteLine(JsonSerializer.Serialize(new
+                WriteOutput(JsonSerializer.Serialize(new
                 {
                     command = "trace",
                     file = opts.FilePath,
                     status = "ParseError",
                     diagnostics = parseResult.Diagnostics
-                }, JsonOptions));
+                }, JsonOptions), opts.OutFile);
             }
             else
             {
@@ -206,7 +208,7 @@ public static class Program
 
         if (opts.Json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new
+            WriteOutput(JsonSerializer.Serialize(new
             {
                 command = "trace",
                 file = opts.FilePath,
@@ -215,15 +217,17 @@ public static class Program
                 finalState = result.FinalState,
                 trace = result.Trace,
                 diagnostics = result.Diagnostics
-            }, JsonOptions));
+            }, JsonOptions), opts.OutFile);
         }
         else
         {
+            var sb = new StringBuilder();
             foreach (var ev in result.Trace)
             {
                 string extra = ev.Description is not null ? $" | {ev.Description}" : string.Empty;
-                Console.WriteLine($"[Step {ev.Step}] {ev.Kind} ({ev.StatementType} @ {ev.Span}){extra} -> {FormatState(ev.StateSnapshot)}");
+                sb.AppendLine($"[Step {ev.Step}] {ev.Kind} ({ev.StatementType} @ {ev.Span}){extra} -> {FormatState(ev.StateSnapshot)}");
             }
+            WriteOutput(sb.ToString().TrimEnd(), opts.OutFile);
             if (result.Diagnostics.Count > 0)
                 PrintDiagnostics(result.Diagnostics);
         }
@@ -241,13 +245,13 @@ public static class Program
         {
             if (opts.Json)
             {
-                Console.WriteLine(JsonSerializer.Serialize(new
+                WriteOutput(JsonSerializer.Serialize(new
                 {
                     command = "semantics",
                     file = opts.FilePath,
                     status = "ParseError",
                     diagnostics = parseResult.Diagnostics
-                }, JsonOptions));
+                }, JsonOptions), opts.OutFile);
             }
             else
             {
@@ -262,7 +266,7 @@ public static class Program
 
         if (opts.Json)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new
+            WriteOutput(JsonSerializer.Serialize(new
             {
                 command = "semantics",
                 file = opts.FilePath,
@@ -271,23 +275,38 @@ public static class Program
                 finalState = evalResult.FinalState,
                 undefinedReason = evalResult.UndefinedReason,
                 steps = evalResult.Steps
-            }, JsonOptions));
+            }, JsonOptions), opts.OutFile);
         }
         else
         {
-            Console.WriteLine($"Семантичний терм:\n  S[[P]] = {term.ToNotation()}\n");
-            Console.WriteLine("Кроки обчислення:");
+            var sb = new StringBuilder();
+            sb.AppendLine($"Семантичний терм:\n  S[[P]] = {term.ToNotation()}\n");
+            sb.AppendLine("Кроки обчислення:");
             foreach (var step in evalResult.Steps)
             {
-                Console.WriteLine($"  {step.StepNumber}. [{step.RuleName}] {step.Explanation}");
+                sb.AppendLine($"  {step.StepNumber}. [{step.RuleName}] {step.Explanation}");
             }
-            Console.WriteLine();
-            Console.WriteLine(evalResult.IsDefined
+            sb.AppendLine();
+            sb.Append(evalResult.IsDefined
                 ? $"Результат: {FormatState(evalResult.FinalState!)}"
                 : $"Результат: ⊥ ({evalResult.UndefinedReason})");
+            WriteOutput(sb.ToString(), opts.OutFile);
         }
 
         return evalResult.IsDefined ? 0 : 3;
+    }
+
+    private static void WriteOutput(string content, string? outFile)
+    {
+        if (!string.IsNullOrWhiteSpace(outFile))
+        {
+            File.WriteAllText(outFile, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            Console.WriteLine($"Збережено у '{outFile}' (UTF-8).");
+        }
+        else
+        {
+            Console.WriteLine(content);
+        }
     }
 
     private static bool TryParseCommonArgs(string[] args, out CliOptions options, out string? error)
@@ -298,6 +317,7 @@ public static class Program
         string? filePath = null;
         bool json = false;
         string? format = null;
+        string? outFile = null;
         int maxSteps = 10_000;
         var vars = new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -316,6 +336,15 @@ public static class Program
                     return false;
                 }
                 format = args[++i].ToLowerInvariant();
+            }
+            else if (arg is "--out" or "-o")
+            {
+                if (i + 1 >= args.Length)
+                {
+                    error = "Прапорець '--out' вимагає шлях до вихідного файлу.";
+                    return false;
+                }
+                outFile = args[++i];
             }
             else if (arg == "--max-steps")
             {
@@ -369,7 +398,7 @@ public static class Program
             return false;
         }
 
-        options = new CliOptions(filePath, File.ReadAllText(filePath), json, format, maxSteps, vars);
+        options = new CliOptions(filePath, File.ReadAllText(filePath), json, format, maxSteps, vars, outFile);
         return true;
     }
 
@@ -398,11 +427,11 @@ public static class Program
         Console.WriteLine("""
             SIPL Language Toolkit CLI
             Використання:
-              sipl check <file.sipl> [--json]
-              sipl parse <file.sipl> [--format text|json|dot|cst|compare] [--json]
-              sipl run <file.sipl> [--var X=10 ...] [--max-steps 10000] [--json]
-              sipl trace <file.sipl> [--var X=10 ...] [--max-steps 10000] [--json]
-              sipl semantics <file.sipl> [--var X=10 ...] [--max-steps 1000] [--json]
+              sipl check <file.sipl> [--json] [--out <file>]
+              sipl parse <file.sipl> [--format text|json|dot|cst|compare] [--json] [--out <file>]
+              sipl run <file.sipl> [--var X=10 ...] [--max-steps 10000] [--json] [--out <file>]
+              sipl trace <file.sipl> [--var X=10 ...] [--max-steps 10000] [--json] [--out <file>]
+              sipl semantics <file.sipl> [--var X=10 ...] [--max-steps 1000] [--json] [--out <file>]
 
             Коди завершення:
               0 - успіх
@@ -418,5 +447,6 @@ public static class Program
         bool Json,
         string? Format,
         int MaxSteps,
-        IReadOnlyDictionary<string, int> InitialVariables);
+        IReadOnlyDictionary<string, int> InitialVariables,
+        string? OutFile);
 }
